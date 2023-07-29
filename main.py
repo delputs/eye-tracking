@@ -1,13 +1,20 @@
-
 import cv2 as cv
 import mediapipe as mp
 import time
+from datetime import datetime
 import utils, math
 import numpy as np
 # variables 
 frame_counter =0
 CEF_COUNTER =0
 TOTAL_BLINKS =0
+change = 0
+change1 = 0
+fokus_mulai = 0
+durasi_fokus = 0
+fokus_string = 'NO'
+start_time=0
+end_time=0
 # constants
 CLOSED_EYES_FRAME =3
 FONTS =cv.FONT_HERSHEY_COMPLEX
@@ -19,6 +26,7 @@ FACE_OVAL=[ 10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365,
 LIPS=[ 61, 146, 91, 181, 84, 17, 314, 405, 321, 375,291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95,185, 40, 39, 37,0 ,267 ,269 ,270 ,409, 415, 310, 311, 312, 13, 82, 81, 42, 183, 78 ]
 LOWER_LIPS =[61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95]
 UPPER_LIPS=[ 185, 40, 39, 37,0 ,267 ,269 ,270 ,409, 415, 310, 311, 312, 13, 82, 81, 42, 183, 78] 
+
 # Left eyes indices 
 LEFT_EYE =[ 362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385,384, 398 ]
 LEFT_EYEBROW =[ 336, 296, 334, 293, 300, 276, 283, 282, 295, 285 ]
@@ -45,9 +53,12 @@ def landmarksDetection(img, results, draw=False):
 def euclaideanDistance(point, point1):
     x, y = point
     x1, y1 = point1
-    distance = math.sqrt((x1 - x)**2 + (y1 - y)**2)
+    distance = math.sqrt((x1 - x)*2 + (y1 - y)*2)
     return distance
-
+# def hitung_durasi (start_time,end_time):
+#     durasi = end_time - start_time
+#     print(durasi)
+#     return durasi
 # Blinking Ratio
 def blinkRatio(img, landmarks, right_indices, left_indices):
     # Right eyes 
@@ -165,25 +176,35 @@ def pixelCounter(first_piece, second_piece, third_piece):
     pos_eye ='' 
     if max_index==0:
         pos_eye="RIGHT"
+        change = 0
         color=[utils.BLACK, utils.GREEN]
     elif max_index==1:
         pos_eye = 'CENTER'
+        change = 1
         color = [utils.YELLOW, utils.PINK]
     elif max_index ==2:
         pos_eye = 'LEFT'
+        change = 0
         color = [utils.GRAY, utils.YELLOW]
     else:
         pos_eye="Closed"
         color = [utils.GRAY, utils.YELLOW]
+    
+    # if change == 0:
+        # end_time = datetime.now()
+        # durasi = end_time - start_time
+        # print (durasi)
+
     return pos_eye, color
 
 
 with map_face_mesh.FaceMesh(min_detection_confidence =0.5, min_tracking_confidence=0.5) as face_mesh:
-
+    fokus_akhir = time.time()
     # starting time here 
     start_time = time.time()
     # starting Video loop here.
     while True:
+        
         frame_counter +=1 # frame counter
         ret, frame = camera.read() # getting frame from camera 
         if not ret: 
@@ -222,11 +243,33 @@ with map_face_mesh.FaceMesh(min_detection_confidence =0.5, min_tracking_confiden
             # cv.imshow('right', crop_right)
             # cv.imshow('left', crop_left)
             eye_position, color = positionEstimator(crop_right)
+            if eye_position == 'CENTER':
+                fokus_mulai = time.time()
+                durasi_fokus += fokus_mulai - fokus_akhir
+                fokus_akhir = fokus_mulai
+            print(durasi_fokus)
+            if eye_position != 'CENTER':
+                durasi_fokus = 0
+            if (durasi_fokus >= 5):
+                fokus_string = 'YES'
+                print("fokus")
+            else:
+                fokus_string = 'NO'
+            utils.colorBackgroundText(frame, f'Fokus = {fokus_string}', FONTS, 1.0, (40, 440), 2, color[0], color[1], 8, 8)
             utils.colorBackgroundText(frame, f'R: {eye_position}', FONTS, 1.0, (40, 220), 2, color[0], color[1], 8, 8)
             eye_position_left, color = positionEstimator(crop_left)
             utils.colorBackgroundText(frame, f'L: {eye_position_left}', FONTS, 1.0, (40, 320), 2, color[0], color[1], 8, 8)
             
+        #     change1 = 1
+        # if change1 == 1:
+        #     durasi_fokus += fokus_mulai - fokus_akhir
+        #     fokus_akhir = fokus_mulai
+        # elif change == 1 and fokus_mulai is not None:
             
+        # print('Durasi Fokus:', durasi_fokus, 'detik')
+        # print(eye_position)
+        
+        
 
 
         # calculating  frame per seconds FPS
@@ -240,5 +283,6 @@ with map_face_mesh.FaceMesh(min_detection_confidence =0.5, min_tracking_confiden
         key = cv.waitKey(2)
         if key==ord('q') or key ==ord('Q'):
             break
+    
     cv.destroyAllWindows()
     camera.release()
