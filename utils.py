@@ -1,7 +1,7 @@
 '''
 
 Author: Adelia Putri Salsabilla
-instagram: delputs_
+Instagram: delputs_
 
 '''
 
